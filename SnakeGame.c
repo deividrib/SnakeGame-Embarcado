@@ -3,8 +3,10 @@
 #include "hardware/adc.h"
 #include "snake.h"
 #include "sound.h"
+#include "matriz_led_control.h"  // Biblioteca para a matriz de LEDs
 
 #define JOYSTICK_BTN 22
+#define LED_MATRIX_PIN 7       // O pino onde a matriz está conectada
 
 int main() {
     stdio_init_all();
@@ -30,6 +32,11 @@ int main() {
     gpio_set_dir(JOYSTICK_BTN, GPIO_IN);
     gpio_pull_up(JOYSTICK_BTN);
 
+    // Inicializa a matriz de LEDs
+    pio_t led_matrix;
+    led_matrix.pio = pio0; // Certifique-se de usar o PIO correto
+    init_pio_routine(&led_matrix, LED_MATRIX_PIN);
+
     // Semente para números aleatórios
     srand(time_us_32());
 
@@ -47,7 +54,8 @@ int main() {
 
         if (game.game_over_flag) {
             sound_play_explosion_sound();
-            snake_game_over_screen(&display);
+            // Chama a função de game over, que agora exibe o "X" piscando na matriz de LEDs
+            snake_game_over_screen(&display, &led_matrix);
             snake_init(&game);
         }
         

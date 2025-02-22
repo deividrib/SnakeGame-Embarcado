@@ -3,6 +3,8 @@
 #include "hardware/adc.h"
 #include <stdlib.h>
 
+
+
 // Função interna para gerar a posição da comida em um local válido
 static void snake_generate_food(SnakeGame *game) {
     bool valid = false;
@@ -150,13 +152,36 @@ void snake_draw(SnakeGame *game, ssd1306_t *display) {
 }
 
 // Exibe uma tela de "Game Over" e aguarda o pressionamento do botão do joystick para reiniciar
-void snake_game_over_screen(ssd1306_t *display) {
+void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
+    // Exibe mensagem de game over no OLED
     ssd1306_fill(display, 0);
     ssd1306_draw_string(display, "GAME OVER", 20, 20);
     ssd1306_draw_string(display, "Press BTN", 20, 40);
     ssd1306_send_data(display);
     
-    // Aguarda até que o botão seja pressionado e depois liberado
+    // Define o padrão "X" para a matriz LED 5x5
+    double x_pattern[25] = {
+         1.0, 0.0, 0.0, 0.0, 1.0,
+         0.0, 1.0, 0.0, 1.0, 0.0,
+         0.0, 0.0, 1.0, 0.0, 0.0,
+         0.0, 1.0, 0.0, 1.0, 0.0,
+         1.0, 0.0, 0.0, 0.0, 1.0
+    };
+    
+    // Configura a cor desejada: vermelho (r = 1.0, g = 0.0, b = 0.0)
+    led_matrix->r = 1.0;
+    led_matrix->g = 0.0;
+    led_matrix->b = 0.0;
+    
+    // Efeito de piscar o "X"
+    for (int i = 0; i < 5; i++) {
+        desenho_pio_rgb(x_pattern, led_matrix);  // Envia o padrão para a matriz com a cor definida
+        sleep_ms(500);
+        desliga_tudo(led_matrix);                // Apaga a matriz
+        sleep_ms(500);
+    }
+    
+    // Aguarda o pressionamento do botão para reiniciar
     while (gpio_get(JOYSTICK_BTN)) {
         sleep_ms(100);
     }

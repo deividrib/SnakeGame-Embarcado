@@ -39,7 +39,6 @@ add_executable(SnakeGame
       SnakeGame.c
       include/ssd1306.c 
       include/matriz_led_control.c
-      include/chapter1.c
       include/snake.c
       include/sound.c
 )
