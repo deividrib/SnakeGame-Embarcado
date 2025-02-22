@@ -2,7 +2,7 @@
 #include "pico/stdlib.h"
 #include "hardware/adc.h"
 #include <stdlib.h>
-
+#include "hardware/pwm.h"
 
 
 // Função interna para gerar a posição da comida em um local válido
@@ -89,7 +89,8 @@ void snake_update_direction(SnakeGame *game) {
 }
 
 // Atualiza o estado do jogo: movimenta a cobra, trata alimentação, wrap-around e colisões com o corpo
-void snake_update(SnakeGame *game) {
+// Em snake.c, na função snake_update:
+void snake_update(SnakeGame *game, pio_t *led_matrix) {
     Position new_head = game->snake[0];
 
     // Calcula a nova posição com base na direção atual
@@ -101,32 +102,35 @@ void snake_update(SnakeGame *game) {
         new_head.x--;
     else if (game->current_direction == UP)
         new_head.y--;
-    
-    // Wrap-around: se ultrapassar os limites da grade, entra pelo lado oposto
+
+    // Wrap-around
     if (new_head.x >= GRID_COLS) new_head.x = 0;
     else if (new_head.x < 0) new_head.x = GRID_COLS - 1;
     if (new_head.y >= GRID_ROWS) new_head.y = 0;
     else if (new_head.y < 0) new_head.y = GRID_ROWS - 1;
-    
-    // Se a nova posição colide com o corpo, o jogo termina
+
+    // Verifica colisão com o corpo
     if (snake_collision(game, new_head)) {
         game->game_over_flag = true;
         return;
     }
-    
+
     bool ate_food = (new_head.x == game->food.x && new_head.y == game->food.y);
-    
-    // Move a cobra (realiza um shift nas posições)
+
+    // Move a cobra (shift)
     for (int i = game->snake_length; i > 0; i--) {
         game->snake[i] = game->snake[i - 1];
     }
     game->snake[0] = new_head;
-    
+
     if (ate_food) {
         if (game->snake_length < MAX_SNAKE_LENGTH)
             game->snake_length++;
+        
+        food_eaten_animation();  // Chama o efeito de luz branca no LED RGB
         snake_generate_food(game);
     }
+    
 }
 
 // Função interna para desenhar uma célula na grade
@@ -188,4 +192,20 @@ void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
     while (!gpio_get(JOYSTICK_BTN)) {
         sleep_ms(100);
     }
+}
+
+// Função que exibe uma animação de flash ao comer,
+void food_eaten_animation() {
+    uint slice_b = pwm_gpio_to_slice_num(LED_B_PIN);
+    uint chan_b = pwm_gpio_to_channel(LED_B_PIN);
+    uint brightness = 255;  // Brilho máximo para o LED azul
+
+    // Liga o LED azul
+    pwm_set_chan_level(slice_b, chan_b, brightness);
+    
+    // Mantém o efeito por um tempo curto
+    sleep_ms(200);
+
+    // Desliga o LED azul
+    pwm_set_chan_level(slice_b, chan_b, 0);
 }

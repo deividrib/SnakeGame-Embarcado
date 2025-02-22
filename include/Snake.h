@@ -24,6 +24,8 @@
 #define DEAD_ZONE 100
 #define NUM_SAMPLES 10
 
+#define LED_B_PIN 12  // Pino do LED azul
+
 // Parâmetro do delay entre frames (em milissegundos)
 #define FRAME_DELAY 300
 
@@ -53,9 +55,9 @@ typedef struct {
 // Protótipos das funções da biblioteca
 void snake_init(SnakeGame *game);
 void snake_update_direction(SnakeGame *game);
-void snake_update(SnakeGame *game);
+void snake_update(SnakeGame *game, pio_t *led_matrix);
 void snake_draw(SnakeGame *game, ssd1306_t *display);
 void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix);
-
+void food_eaten_animation();
 
 #endif // SNAKE_H

@@ -4,13 +4,33 @@
 #include "snake.h"
 #include "sound.h"
 #include "matriz_led_control.h"  // Biblioteca para a matriz de LEDs
+#include "hardware/pwm.h"
+
+#define LED_B_PIN 12  // Pino do LED azul
+
 
 #define JOYSTICK_BTN 22
-#define LED_MATRIX_PIN 7       // O pino onde a matriz está conectada
+#define LED_MATRIX_PIN 7       // Pino onde a matriz está conectada
+
+void setup_rgb_led() {
+
+ 
+  gpio_set_function(LED_B_PIN, GPIO_FUNC_PWM);
+
+  uint slice_b = pwm_gpio_to_slice_num(LED_B_PIN);
+  uint chan_b = pwm_gpio_to_channel(LED_B_PIN);
+  
+    pwm_set_wrap(slice_b, 255);
+
+    pwm_set_enabled(slice_b, true);
+}
+
 
 int main() {
     stdio_init_all();
     sleep_ms(2000);
+
+    setup_rgb_led();  // Inicializa o LED RGB com PWM
 
     // Inicializa o display OLED via I2C (SDA=14, SCL=15)
     i2c_init(i2c1, 100 * 1000);
@@ -34,7 +54,7 @@ int main() {
 
     // Inicializa a matriz de LEDs
     pio_t led_matrix;
-    led_matrix.pio = pio0; // Certifique-se de usar o PIO correto
+    led_matrix.pio = pio0;  // Use o PIO correto (pio0 ou pio1)
     init_pio_routine(&led_matrix, LED_MATRIX_PIN);
 
     // Semente para números aleatórios
@@ -46,7 +66,8 @@ int main() {
 
     while (true) {
         snake_update_direction(&game);
-        snake_update(&game);
+        // Agora passamos o ponteiro da matriz para a função de atualização:
+        snake_update(&game, &led_matrix);
         snake_draw(&game, &display);
 
         // Toca a nota de fundo a cada ciclo
@@ -54,7 +75,6 @@ int main() {
 
         if (game.game_over_flag) {
             sound_play_explosion_sound();
-            // Chama a função de game over, que agora exibe o "X" piscando na matriz de LEDs
             snake_game_over_screen(&display, &led_matrix);
             snake_init(&game);
         }
