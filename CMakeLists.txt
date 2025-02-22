@@ -40,6 +40,7 @@ add_executable(SnakeGame
       include/ssd1306.c 
       include/matriz_led_control.c
       include/chapter1.c
+      include/snake.c
 )
 
 pico_set_program_name(SnakeGame "SnakeGame")
