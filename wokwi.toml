@@ -1,0 +1,4 @@
+[wokwi]
+version = 1
+firmware = 'build/SnakeGame.uf2'
+elf = 'build/SnakeGame.elf'
