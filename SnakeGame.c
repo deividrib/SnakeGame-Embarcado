@@ -3,34 +3,46 @@
 #include "hardware/adc.h"
 #include "snake.h"
 #include "sound.h"
-#include "matriz_led_control.h"  // Biblioteca para a matriz de LEDs
+#include "matriz_led_control.h"
 #include "hardware/pwm.h"
 
-#define LED_B_PIN 12  // Pino do LED azul
 
-
+#define LED_B_PIN 12    // Usado apenas o LED azul
 #define JOYSTICK_BTN 22
-#define LED_MATRIX_PIN 7       // Pino onde a matriz está conectada
+#define LED_MATRIX_PIN 7
+#define PAUSE_BTN 5     // Botão A conectado ao GPIO 5
 
-void setup_rgb_led() {
+// Variável global para indicar se o jogo está pausado
+volatile bool game_paused = false;
+// Variável global para debouncing
+volatile uint32_t last_interrupt_time = 0;
+#define DEBOUNCE_TIME 50000 // 50ms em microsegundos
 
- 
-  gpio_set_function(LED_B_PIN, GPIO_FUNC_PWM);
-
-  uint slice_b = pwm_gpio_to_slice_num(LED_B_PIN);
-  uint chan_b = pwm_gpio_to_channel(LED_B_PIN);
-  
-    pwm_set_wrap(slice_b, 255);
-
-    pwm_set_enabled(slice_b, true);
+// Callback de interrupção para o botão de pausa com debouncing
+void gpio_callback(uint gpio, uint32_t events) {
+    if (gpio == PAUSE_BTN && (events & GPIO_IRQ_EDGE_FALL)) {
+        uint32_t current_time = time_us_32();
+        if (current_time - last_interrupt_time < DEBOUNCE_TIME) {
+            return; // Ignora se o intervalo for menor que o tempo de debouncing
+        }
+        last_interrupt_time = current_time;
+        game_paused = !game_paused;
+    }
 }
 
+void setup_blue_led() {
+    gpio_set_function(LED_B_PIN, GPIO_FUNC_PWM);
+    uint slice_b = pwm_gpio_to_slice_num(LED_B_PIN);
+    uint chan_b = pwm_gpio_to_channel(LED_B_PIN);
+    pwm_set_wrap(slice_b, 255);
+    pwm_set_enabled(slice_b, true);
+}
 
 int main() {
     stdio_init_all();
     sleep_ms(2000);
 
-    setup_rgb_led();  // Inicializa o LED RGB com PWM
+    setup_blue_led();
 
     // Inicializa o display OLED via I2C (SDA=14, SCL=15)
     i2c_init(i2c1, 100 * 1000);
@@ -52,25 +64,37 @@ int main() {
     gpio_set_dir(JOYSTICK_BTN, GPIO_IN);
     gpio_pull_up(JOYSTICK_BTN);
 
+    // Inicializa o botão de pausa (GPIO5)
+    gpio_init(PAUSE_BTN);
+    gpio_set_dir(PAUSE_BTN, GPIO_IN);
+    gpio_pull_up(PAUSE_BTN);
+    // Configura a interrupção com callback para o botão de pausa na borda de descida
+    gpio_set_irq_enabled_with_callback(PAUSE_BTN, GPIO_IRQ_EDGE_FALL, true, gpio_callback);
+
     // Inicializa a matriz de LEDs
     pio_t led_matrix;
-    led_matrix.pio = pio0;  // Use o PIO correto (pio0 ou pio1)
+    led_matrix.pio = pio0;
     init_pio_routine(&led_matrix, LED_MATRIX_PIN);
 
-    // Semente para números aleatórios
     srand(time_us_32());
 
-    // Inicializa o jogo
     SnakeGame game;
     snake_init(&game);
 
     while (true) {
+        // Se o jogo estiver pausado, exibe a mensagem "PAUSE" e não atualiza o jogo
+        if (game_paused) {
+            ssd1306_fill(&display, 0);
+            ssd1306_draw_string(&display, "PAUSE", 30, 30);
+            ssd1306_send_data(&display);
+            sleep_ms(100);
+            continue;
+        }
+
         snake_update_direction(&game);
-        // Agora passamos o ponteiro da matriz para a função de atualização:
         snake_update(&game, &led_matrix);
         snake_draw(&game, &display);
 
-        // Toca a nota de fundo a cada ciclo
         sound_play_background_note();
 
         if (game.game_over_flag) {
