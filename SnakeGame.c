@@ -20,7 +20,7 @@ volatile bool game_sound_enabled = true;
 // Variáveis para debouncing (em microsegundos)
 volatile uint32_t last_pause_interrupt_time = 0;
 volatile uint32_t last_sound_interrupt_time = 0;
-#define DEBOUNCE_TIME 100000 // 50 ms
+#define DEBOUNCE_TIME 200000 // 50 ms
 
 // Callback de interrupção para PAUSE_BTN e SOUND_BTN com debouncing
 void gpio_callback(uint gpio, uint32_t events) {
