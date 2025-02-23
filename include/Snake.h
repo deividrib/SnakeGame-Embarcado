@@ -8,7 +8,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "ssd1306.h"  // Certifique-se de que esta biblioteca esteja disponível
+#include "ssd1306.h"           // Certifique-se de que esta biblioteca esteja disponível
 #include "matriz_led_control.h"
 
 // Parâmetros da grade e do jogo
@@ -52,7 +52,7 @@ typedef struct {
     bool game_over_flag;
 } SnakeGame;
 
-// Protótipos das funções da biblioteca
+// Protótipos das funções públicas da biblioteca
 void snake_init(SnakeGame *game);
 void snake_update_direction(SnakeGame *game);
 void snake_update(SnakeGame *game, pio_t *led_matrix);

@@ -4,8 +4,63 @@
 #include <stdlib.h>
 #include "hardware/pwm.h"
 
+#define BITMAP_SIZE 8  // Supondo que CELL_SIZE seja 8
 
-// Função interna para gerar a posição da comida em um local válido
+// -------------------------------------------------------------------
+// Bitmaps para o novo design:
+
+// Bitmap da cabeça da cobra (com "olhos")
+static const uint8_t snake_head_bitmap[BITMAP_SIZE * BITMAP_SIZE] = {
+    0,0,1,1,1,1,0,0,
+    0,1,1,1,1,1,1,0,
+    1,1,0,1,1,0,1,1,
+    1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,
+    1,1,0,1,1,0,1,1,
+    0,1,1,0,0,1,1,0,
+    0,0,1,1,1,1,0,0
+};
+
+// Bitmap para o corpo da cobra
+static const uint8_t snake_body_bitmap[BITMAP_SIZE * BITMAP_SIZE] = {
+    0,0,1,1,1,1,0,0,
+    0,1,1,1,1,1,1,0,
+    1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,
+    0,1,1,1,1,1,1,0,
+    0,0,1,1,1,1,0,0
+};
+
+// Bitmap para a cauda da cobra (com final afinado)
+static const uint8_t snake_tail_bitmap[BITMAP_SIZE * BITMAP_SIZE] = {
+    0,0,1,1,1,1,0,0,
+    0,1,1,1,1,1,1,0,
+    1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,
+    0,1,1,1,1,1,1,0,
+    0,0,1,1,1,1,0,0,
+    0,0,0,1,1,0,0,0
+};
+
+// Bitmap para o alimento (desenhado em formato de losango)
+static const uint8_t food_bitmap[BITMAP_SIZE * BITMAP_SIZE] = {
+    0,0,0,1,1,0,0,0,
+    0,0,1,1,1,1,0,0,
+    0,1,1,1,1,1,1,0,
+    1,1,1,1,1,1,1,1,
+    1,1,1,1,1,1,1,1,
+    0,1,1,1,1,1,1,0,
+    0,0,1,1,1,1,0,0,
+    0,0,0,1,1,0,0,0
+};
+
+// -------------------------------------------------------------------
+// Funções internas para controle do jogo
+
+// Gera uma posição aleatória para a comida, evitando sobrepor a cobra.
 static void snake_generate_food(SnakeGame *game) {
     bool valid = false;
     Position pos;
@@ -23,7 +78,7 @@ static void snake_generate_food(SnakeGame *game) {
     game->food = pos;
 }
 
-// Função interna que verifica se a posição colide com o corpo da cobra
+// Verifica se a posição informada colide com algum segmento da cobra.
 static bool snake_collision(SnakeGame *game, Position pos) {
     for (int i = 0; i < game->snake_length; i++) {
         if (game->snake[i].x == pos.x && game->snake[i].y == pos.y)
@@ -32,10 +87,10 @@ static bool snake_collision(SnakeGame *game, Position pos) {
     return false;
 }
 
-// Inicializa o estado do jogo
+// Inicializa o estado do jogo.
 void snake_init(SnakeGame *game) {
     game->snake_length = 3;
-    // Posiciona a cobra no centro da grade
+    // Posiciona a cobra no centro da grade.
     game->snake[0].x = GRID_COLS / 2;
     game->snake[0].y = GRID_ROWS / 2;
     game->snake[1].x = game->snake[0].x - 1;
@@ -49,8 +104,7 @@ void snake_init(SnakeGame *game) {
 }
 
 // Atualiza a direção da cobra com base na leitura dos ADCs do joystick.
-// Utiliza a troca dos canais (canal X → eixo Y, canal Y → eixo X) e aplica a zona morta.
-// Para o eixo Y, inverte a lógica para corrigir a inversão.
+// Agora, cada canal é lido sem troca: o canal X controla o eixo horizontal e o canal Y o vertical.
 void snake_update_direction(SnakeGame *game) {
     uint32_t total_x = 0, total_y = 0;
     for (int i = 0; i < NUM_SAMPLES; i++) {
@@ -87,13 +141,11 @@ void snake_update_direction(SnakeGame *game) {
             game->current_direction = DOWN;
     }
 }
-
-// Atualiza o estado do jogo: movimenta a cobra, trata alimentação, wrap-around e colisões com o corpo
-// Em snake.c, na função snake_update:
+// Atualiza o estado do jogo: movimenta a cobra, trata alimentação, wrap-around e colisões.
 void snake_update(SnakeGame *game, pio_t *led_matrix) {
     Position new_head = game->snake[0];
 
-    // Calcula a nova posição com base na direção atual
+    // Calcula a nova posição com base na direção atual.
     if (game->current_direction == RIGHT)
         new_head.x++;
     else if (game->current_direction == DOWN)
@@ -103,13 +155,13 @@ void snake_update(SnakeGame *game, pio_t *led_matrix) {
     else if (game->current_direction == UP)
         new_head.y--;
 
-    // Wrap-around
+    // Wrap-around: se ultrapassar a borda, reaparece do outro lado.
     if (new_head.x >= GRID_COLS) new_head.x = 0;
     else if (new_head.x < 0) new_head.x = GRID_COLS - 1;
     if (new_head.y >= GRID_ROWS) new_head.y = 0;
     else if (new_head.y < 0) new_head.y = GRID_ROWS - 1;
 
-    // Verifica colisão com o corpo
+    // Verifica colisão com o corpo.
     if (snake_collision(game, new_head)) {
         game->game_over_flag = true;
         return;
@@ -117,7 +169,7 @@ void snake_update(SnakeGame *game, pio_t *led_matrix) {
 
     bool ate_food = (new_head.x == game->food.x && new_head.y == game->food.y);
 
-    // Move a cobra (shift)
+    // Move a cobra (shift dos segmentos).
     for (int i = game->snake_length; i > 0; i--) {
         game->snake[i] = game->snake[i - 1];
     }
@@ -127,43 +179,59 @@ void snake_update(SnakeGame *game, pio_t *led_matrix) {
         if (game->snake_length < MAX_SNAKE_LENGTH)
             game->snake_length++;
         
-        food_eaten_animation();  // Chama o efeito de luz branca no LED RGB
+        food_eaten_animation();  // Efeito visual com LED azul.
         snake_generate_food(game);
     }
-    
 }
 
-// Função interna para desenhar uma célula na grade
-static void draw_cell(uint8_t grid_x, uint8_t grid_y, bool fill, ssd1306_t *display) {
-    uint8_t x_pixel = grid_x * CELL_SIZE;
-    uint8_t y_pixel = grid_y * CELL_SIZE;
-    ssd1306_rect(display, y_pixel, x_pixel, CELL_SIZE, CELL_SIZE, 1, fill);
+// -------------------------------------------------------------------
+// Funções de desenho com o novo design
+
+// Converte coordenadas da grade para pixels e desenha um bitmap no display.
+// x_pixel representa a coluna e y_pixel a linha.
+static void draw_bitmap(ssd1306_t *display, uint8_t x_pixel, uint8_t y_pixel, const uint8_t *bitmap, int size) {
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            if (bitmap[i * size + j])
+                ssd1306_pixel(display, x_pixel + j, y_pixel + i, 1);
+        }
+    }
 }
 
-// Desenha o estado atual do jogo no display OLED
+// Desenha o estado atual do jogo utilizando os bitmaps personalizados.
 void snake_draw(SnakeGame *game, ssd1306_t *display) {
     ssd1306_fill(display, 0);
     
-    // Desenha a comida
-    draw_cell(game->food.x, game->food.y, true, display);
+    // Desenha o alimento com o novo design.
+    uint8_t food_x = game->food.x * CELL_SIZE;
+    uint8_t food_y = game->food.y * CELL_SIZE;
+    draw_bitmap(display, food_x, food_y, food_bitmap, BITMAP_SIZE);
     
-    // Desenha cada célula da cobra
+    // Desenha cada segmento da cobra com o bitmap correspondente.
     for (int i = 0; i < game->snake_length; i++) {
-        draw_cell(game->snake[i].x, game->snake[i].y, true, display);
+        uint8_t seg_x = game->snake[i].x * CELL_SIZE;
+        uint8_t seg_y = game->snake[i].y * CELL_SIZE;
+        
+        if (i == 0)
+            draw_bitmap(display, seg_x, seg_y, snake_head_bitmap, BITMAP_SIZE);
+        else if (i == game->snake_length - 1)
+            draw_bitmap(display, seg_x, seg_y, snake_tail_bitmap, BITMAP_SIZE);
+        else
+            draw_bitmap(display, seg_x, seg_y, snake_body_bitmap, BITMAP_SIZE);
     }
     
     ssd1306_send_data(display);
 }
 
-// Exibe uma tela de "Game Over" e aguarda o pressionamento do botão do joystick para reiniciar
+// -------------------------------------------------------------------
+// Tela de "Game Over" e animação de LED (mantidas da base)
+
 void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
-    // Exibe mensagem de game over no OLED
     ssd1306_fill(display, 0);
     ssd1306_draw_string(display, "GAME OVER", 20, 20);
     ssd1306_draw_string(display, "Press BTN", 20, 40);
     ssd1306_send_data(display);
     
-    // Define o padrão "X" para a matriz LED 5x5
     double x_pattern[25] = {
          1.0, 0.0, 0.0, 0.0, 1.0,
          0.0, 1.0, 0.0, 1.0, 0.0,
@@ -172,20 +240,17 @@ void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
          1.0, 0.0, 0.0, 0.0, 1.0
     };
     
-    // Configura a cor desejada: vermelho (r = 1.0, g = 0.0, b = 0.0)
     led_matrix->r = 1.0;
     led_matrix->g = 0.0;
     led_matrix->b = 0.0;
     
-    // Efeito de piscar o "X"
     for (int i = 0; i < 5; i++) {
-        desenho_pio_rgb(x_pattern, led_matrix);  // Envia o padrão para a matriz com a cor definida
+        desenho_pio_rgb(x_pattern, led_matrix);
         sleep_ms(500);
-        desliga_tudo(led_matrix);                // Apaga a matriz
+        desliga_tudo(led_matrix);
         sleep_ms(500);
     }
     
-    // Aguarda o pressionamento do botão para reiniciar
     while (gpio_get(JOYSTICK_BTN)) {
         sleep_ms(100);
     }
@@ -194,18 +259,11 @@ void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
     }
 }
 
-// Função que exibe uma animação de flash ao comer,
 void food_eaten_animation() {
     uint slice_b = pwm_gpio_to_slice_num(LED_B_PIN);
     uint chan_b = pwm_gpio_to_channel(LED_B_PIN);
-    uint brightness = 255;  // Brilho máximo para o LED azul
-
-    // Liga o LED azul
+    uint brightness = 255;
     pwm_set_chan_level(slice_b, chan_b, brightness);
-    
-    // Mantém o efeito por um tempo curto
     sleep_ms(200);
-
-    // Desliga o LED azul
     pwm_set_chan_level(slice_b, chan_b, 0);
 }
