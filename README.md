@@ -24,6 +24,8 @@ Este projeto consiste em um **jogo da cobrinha (Snake Game)** rodando em uma **p
 
 A organização dos arquivos está dividida da seguinte forma:
 
+
+```plaintext
  (raiz)
 ├── include/
 │   ├── font.h                # Biblioteca com fontes para caracteres, números e símbolos
@@ -46,6 +48,8 @@ A organização dos arquivos está dividida da seguinte forma:
 ├── .gitignore                # Arquivo para exclusões do Git
 └── README.md                 # Este arquivo
 
+
+```
 
 ## Requisitos e Componentes
 

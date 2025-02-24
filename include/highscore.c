@@ -73,6 +73,6 @@ void display_scoreboard(ssd1306_t *display) {
         snprintf(buffer, sizeof(buffer), "%d. %s - %d", i + 1, high_scores[i].name, high_scores[i].score);
         ssd1306_draw_string(display, buffer, 0, 10 + i * 10);
     }
-    ssd1306_draw_string(display, "Aperte BTN para jogar", 0, 50);
+    ssd1306_draw_string(display, "Aperte BTN ", 0, 50);
     ssd1306_send_data(display);
 }
