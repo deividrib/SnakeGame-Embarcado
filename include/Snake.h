@@ -50,6 +50,7 @@ typedef struct {
     Direction current_direction;
     Position food;
     bool game_over_flag;
+    int score;   // Campo adicionado para a pontuação do jogador
 } SnakeGame;
 
 // Protótipos das funções públicas da biblioteca

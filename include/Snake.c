@@ -90,6 +90,7 @@ static bool snake_collision(SnakeGame *game, Position pos) {
 // Inicializa o estado do jogo.
 void snake_init(SnakeGame *game) {
     game->snake_length = 3;
+    game->score = 0;  // Inicializa a pontuação
     // Posiciona a cobra no centro da grade.
     game->snake[0].x = GRID_COLS / 2;
     game->snake[0].y = GRID_ROWS / 2;
@@ -142,7 +143,8 @@ void snake_update_direction(SnakeGame *game) {
     }
 }
 // Atualiza o estado do jogo: movimenta a cobra, trata alimentação, wrap-around e colisões.
-void snake_update(SnakeGame *game, pio_t *led_matrix) {
+void snake_update(SnakeGame *game, pio_t *led_matrix) 
+{
     Position new_head = game->snake[0];
 
     // Calcula a nova posição com base na direção atual.
@@ -155,13 +157,13 @@ void snake_update(SnakeGame *game, pio_t *led_matrix) {
     else if (game->current_direction == UP)
         new_head.y--;
 
-    // Wrap-around: se ultrapassar a borda, reaparece do outro lado.
+    // Wrap-around:
     if (new_head.x >= GRID_COLS) new_head.x = 0;
     else if (new_head.x < 0) new_head.x = GRID_COLS - 1;
     if (new_head.y >= GRID_ROWS) new_head.y = 0;
     else if (new_head.y < 0) new_head.y = GRID_ROWS - 1;
 
-    // Verifica colisão com o corpo.
+    // Colisão com o corpo
     if (snake_collision(game, new_head)) {
         game->game_over_flag = true;
         return;
@@ -169,7 +171,7 @@ void snake_update(SnakeGame *game, pio_t *led_matrix) {
 
     bool ate_food = (new_head.x == game->food.x && new_head.y == game->food.y);
 
-    // Move a cobra (shift dos segmentos).
+    // Move a cobra (shift dos segmentos)
     for (int i = game->snake_length; i > 0; i--) {
         game->snake[i] = game->snake[i - 1];
     }
@@ -178,12 +180,11 @@ void snake_update(SnakeGame *game, pio_t *led_matrix) {
     if (ate_food) {
         if (game->snake_length < MAX_SNAKE_LENGTH)
             game->snake_length++;
-        
-        food_eaten_animation();  // Efeito visual com LED azul.
+        game->score++;  // Incrementa a pontuação
+        food_eaten_animation();
         snake_generate_food(game);
     }
 }
-
 // -------------------------------------------------------------------
 // Funções de desenho com o novo design
 
@@ -232,6 +233,7 @@ void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
     ssd1306_draw_string(display, "Press BTN", 20, 40);
     ssd1306_send_data(display);
     
+    // Padrão para animação (formato 5x5)
     double x_pattern[25] = {
          1.0, 0.0, 0.0, 0.0, 1.0,
          0.0, 1.0, 0.0, 1.0, 0.0,
@@ -240,10 +242,12 @@ void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
          1.0, 0.0, 0.0, 0.0, 1.0
     };
     
+    // Configura a cor vermelha para a animação
     led_matrix->r = 1.0;
     led_matrix->g = 0.0;
     led_matrix->b = 0.0;
     
+    // Executa a animação de piscar a matriz de LEDs
     for (int i = 0; i < 5; i++) {
         desenho_pio_rgb(x_pattern, led_matrix);
         sleep_ms(500);
@@ -251,6 +255,7 @@ void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
         sleep_ms(500);
     }
     
+    // Aguarda o jogador pressionar e soltar o botão do joystick para prosseguir
     while (gpio_get(JOYSTICK_BTN)) {
         sleep_ms(100);
     }

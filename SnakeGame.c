@@ -5,6 +5,8 @@
 #include "sound.h"
 #include "matriz_led_control.h"
 #include "hardware/pwm.h"
+#include <stdio.h>
+#include <string.h>
 
 #define LED_B_PIN 12    // Usado apenas o LED azul
 #define JOYSTICK_BTN 22
@@ -13,6 +15,98 @@
 #define PAUSE_BTN 5     // Botão A para pausar (GPIO 5)
 #define SOUND_BTN 6     // Botão B para mutar/desmutar som (GPIO 6)
 
+#define MAX_HIGH_SCORES 3
+#define MAX_NAME_LENGTH 16
+
+typedef struct {
+    int score;
+    char name[MAX_NAME_LENGTH];
+} HighScore;
+
+HighScore high_scores[MAX_HIGH_SCORES];
+
+/// Inicializa o placar com valores padrão.
+void init_high_scores() {
+    for (int i = 0; i < MAX_HIGH_SCORES; i++) {
+        high_scores[i].score = 0;
+        strcpy(high_scores[i].name, "---");
+    }
+}
+
+
+// Atualiza o placar se a pontuação atual for um novo recorde.
+// Exibe uma mensagem no OLED e solicita a entrada do nome via Serial ou via botão.
+void update_high_scores(ssd1306_t *display, int score) {
+    if (score > high_scores[MAX_HIGH_SCORES - 1].score) {
+        // Define o tamanho do array para 8 caracteres + 1 para o '\0'
+        char name[9] = {0};
+
+        // Exibe mensagem no OLED
+        ssd1306_fill(display, 0);
+        ssd1306_draw_string(display, "Novo recorde!", 10, 10);
+        ssd1306_draw_string(display, "Dgt seu nome:", 10, 25);
+        ssd1306_draw_string(display, "via Serial", 10, 40);
+        ssd1306_draw_string(display, "Aguarde 8s", 10, 55);
+        ssd1306_send_data(display);
+
+        // Informa via Serial
+        printf("Novo recorde! Insira seu nome (max 8 caracteres):\n");
+        fflush(stdout);
+
+        int index = 0;
+        int elapsed = 0;
+        // Aguarda até 8000 ms (8 s) para entrada do usuário, verificando a cada 10 ms
+        while (elapsed < 8000) {
+            int ch = getchar_timeout_us(10000); // timeout de 10 ms
+            if (ch != PICO_ERROR_TIMEOUT) {
+                if (ch == '\n' || ch == '\r') {
+                    break;
+                }
+                if (index < 8) {  // Limita a 8 caracteres
+                    name[index++] = (char)ch;
+                }
+            }
+            sleep_ms(10);
+            elapsed += 10;
+        }
+        // Se nenhum caractere foi digitado, define como "Anonimo"
+        if (index == 0) {
+            strcpy(name, "Anonimo");
+        } else {
+            name[index] = '\0';
+        }
+
+        // Insere o novo recorde na posição correta (mantendo a ordem decrescente)
+        int pos = MAX_HIGH_SCORES - 1;
+        while (pos > 0 && score > high_scores[pos - 1].score) {
+            high_scores[pos] = high_scores[pos - 1];
+            pos--;
+        }
+        high_scores[pos].score = score;
+        strncpy(high_scores[pos].name, name, 9);
+        high_scores[pos].name[8] = '\0';
+
+        // Exibe mensagem de confirmação via Serial
+        printf("Nome registrado: %s-%dpontos\n", name, score);
+        fflush(stdout);
+    }
+}
+
+
+
+// Exibe o placar na tela OLED.
+void display_scoreboard(ssd1306_t *display) {
+    char buffer[32];
+    ssd1306_fill(display, 0);
+    ssd1306_draw_string(display, "Placar", 30, 0);
+    for (int i = 0; i < MAX_HIGH_SCORES; i++) {
+        snprintf(buffer, sizeof(buffer), "%d. %s - %d", i + 1, high_scores[i].name, high_scores[i].score);
+        ssd1306_draw_string(display, buffer, 0, 10 + i * 10);
+    }
+    ssd1306_draw_string(display, "Aperte BTN para jogar", 0, 50);
+    ssd1306_send_data(display);
+}
+
 // Variáveis globais de estado
 volatile bool game_paused = false;
 volatile bool game_sound_enabled = true;
@@ -20,7 +114,7 @@ volatile bool game_sound_enabled = true;
 // Variáveis para debouncing (em microsegundos)
 volatile uint32_t last_pause_interrupt_time = 0;
 volatile uint32_t last_sound_interrupt_time = 0;
-#define DEBOUNCE_TIME 200000 // 50 ms
+#define DEBOUNCE_TIME 200000 // 200 ms
 
 // Callback de interrupção para PAUSE_BTN e SOUND_BTN com debouncing
 void gpio_callback(uint gpio, uint32_t events) {
@@ -51,6 +145,8 @@ void setup_blue_led() {
 
 int main() {
     stdio_init_all();
+    setvbuf(stdin, NULL, _IONBF, 0);
+
     sleep_ms(2000);
 
     setup_blue_led();
@@ -96,14 +192,16 @@ int main() {
 
     srand(time_us_32());
 
+      // Inicializa o placar
+      init_high_scores();
+
     SnakeGame game;
     snake_init(&game);
 
     while (true) {
-        // Se o jogo estiver pausado, exibe "PAUSE" e não atualiza o jogo
         if (game_paused) {
             ssd1306_fill(&display, 0);
-            ssd1306_draw_string(&display, "PAUSE", 30, 30);
+            ssd1306_draw_string(&display, "PAUSE", 44, 28);
             ssd1306_send_data(&display);
             sleep_ms(100);
             continue;
@@ -113,7 +211,6 @@ int main() {
         snake_update(&game, &led_matrix);
         snake_draw(&game, &display);
 
-        // Emite som apenas se estiver habilitado
         if (game_sound_enabled) {
             sound_play_background_note();
         }
@@ -122,7 +219,23 @@ int main() {
             if (game_sound_enabled) {
                 sound_play_explosion_sound();
             }
+            // Exibe a tela de Game Over (mantendo a animação já implementada)
             snake_game_over_screen(&display, &led_matrix);
+
+            // Verifica se o jogador obteve um novo recorde e, se sim, atualiza o placar.
+           update_high_scores(&display, game.score);
+
+            // Exibe o placar atualizado
+            display_scoreboard(&display);
+
+            // Aguarda até o botão do joystick (GPIO22) ser pressionado para reiniciar
+            while (gpio_get(JOYSTICK_BTN)) {
+                sleep_ms(100);
+            }
+            while (!gpio_get(JOYSTICK_BTN)) {
+                sleep_ms(100);
+            }
+            // Reinicia o jogo
             snake_init(&game);
         }
         
