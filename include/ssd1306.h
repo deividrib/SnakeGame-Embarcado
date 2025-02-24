@@ -1,3 +1,7 @@
+#ifndef SSD1306_H
+#define SSD1306_H
+
+
 #include <stdlib.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
@@ -49,3 +53,5 @@ void ssd1306_draw_char(ssd1306_t *ssd, char c, uint8_t x, uint8_t y);
 void ssd1306_draw_string(ssd1306_t *ssd, const char *str, uint8_t x, uint8_t y);
 void ssd1306_draw_bitmap(ssd1306_t *ssd, uint8_t x, uint8_t y, const uint8_t *bitmap);
 void draw_border(ssd1306_t *ssd, uint8_t style);
+
+#endif // SSD1306_H
