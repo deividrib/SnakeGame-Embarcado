@@ -263,7 +263,7 @@ void snake_game_over_screen(ssd1306_t *display, pio_t *led_matrix) {
         sleep_ms(100);
     }
 }
-
+//pisca o led azul quando a cobra pega a comida
 void food_eaten_animation() {
     uint slice_b = pwm_gpio_to_slice_num(LED_B_PIN);
     uint chan_b = pwm_gpio_to_channel(LED_B_PIN);
