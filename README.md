@@ -135,8 +135,8 @@ Este projeto é um jogo da cobrinha (Snake) desenvolvido para a **placa BitDogLa
 O projeto faz uso da biblioteca **Pico SDK**, permitindo sua execução eficiente na **BitDogLab**.
 
 ## 📹 Demonstração em Vídeo
-[![Assista ao vídeo](https://img.youtube.com/vi/XXXXXXXXXXX/0.jpg)](https://www.youtube.com/watch?v=XXXXXXXXXXX)  
-🔗 *Clique na imagem acima para assistir ao vídeo do projeto!*
+[![Assista ao vídeo](https://www.youtube.com/watch?v=lFmLZoSyaEw](https://www.youtube.com/watch?v=lFmLZoSyaEw)  
+
 
 ## 👤 Autor
 **Deividson Ribeiro Silva**  
